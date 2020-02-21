@@ -1,22 +1,25 @@
 #!/usr/bin/env python
 
 import asyncio
+import os
+
 import websockets
 
 from inputimeout import inputimeout, TimeoutOccurred
 
-from constants import WS_HOST, WS_PORT, WS_URI
+from baseclass import BaseGameWebSocket
 
 
-async def client():
-    uri = WS_URI.format(host=WS_HOST, port=WS_PORT)
-    score = 0
-    async with websockets.connect(uri) as websocket:
-        try:
+class GameClient(BaseGameWebSocket):
+
+    async def play_game(self):
+        uri = self.get_uri()
+        async with websockets.connect(uri) as websocket:
             while True:
                 time_out = await websocket.recv()
-                recieved_key = await websocket.recv()
-                print(f"The Key is {recieved_key}\nThe TimeOut is {time_out}")
+                received_key = await websocket.recv()
+                print(
+                    f"The Key is {received_key}\nThe TimeOut is {time_out}")
 
                 try:
                     key = inputimeout('Enter your response\t',
@@ -26,11 +29,16 @@ async def client():
                     continue
 
                 await websocket.send(key)
-                score = await websocket.recv()
-                print(f'current score is {score}')
-        except websockets.ConnectionClosed:
-            print(f'Game Over!! Your score is {score}!')
+                self.score = await asyncio.wait_for(websocket.recv(), timeout=1)
+                print(f'Your current score is {self.score}\n')
 
-loop = asyncio.get_event_loop()
-stop = asyncio.Future()
-loop.run_until_complete(client())
+    def run(self):
+        self.loop = asyncio.get_event_loop()
+        try:
+            self.loop.run_until_complete(self.play_game())
+        except websockets.ConnectionClosed:
+            self.exit_game()
+
+
+game_client = GameClient()
+game_client.run()

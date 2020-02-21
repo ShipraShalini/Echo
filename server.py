@@ -1,33 +1,9 @@
 import asyncio
-import os
 from concurrent import futures
 
 import websockets
 
-
-class BaseGameWebSocket:
-    DEFAULT_HOST = 'localhost'
-    DEFAULT_PORT = 8765
-
-    def __init__(self):
-        self.score = 0
-        self.loop = asyncio.get_event_loop()
-
-    def get_port(self):
-        return os.getenv('WS_PORT', self.DEFAULT_PORT)
-
-    def get_host(self):
-        return os.getenv('WS_HOST', self.DEFAULT_HOST)
-
-    def get_uri(self):
-        return f'ws://{self.get_host()}:{self.get_port()}'
-
-    def exit_game(self):
-        print(f'Game Over!! Your score is {self.score}!')
-        self.shutdown()
-
-    def shutdown(self):
-        self.loop.call_soon_threadsafe(self.loop.stop)
+from baseclass import BaseGameWebSocket
 
 
 class GameServer(BaseGameWebSocket):
@@ -71,7 +47,7 @@ class GameServer(BaseGameWebSocket):
                 latest_score = self.get_score(key, recieved_key)
                 self.score_list.append(latest_score)
                 self.score += latest_score
-                await websocket.send(f'Your score is {self.score}.')
+                await websocket.send(f'{self.score}')
                 if self.is_game_over_score():
                     self.exit_game()
                     break
@@ -82,9 +58,13 @@ class GameServer(BaseGameWebSocket):
             self.get_host(),
             self.get_port()
         )
+
+        self.loop = asyncio.get_event_loop()
         try:
             self.loop.run_until_complete(server)
             self.loop.run_forever()
+        except KeyboardInterrupt:
+            print(f'Exiting game. Final score is {self.score}')
         except Exception as e:
             print("Server Error!", e)
 
